@@ -74,11 +74,12 @@
 
 #define DIFFICULTY_TARGET_V2                            300
 #define DIFFICULTY_TARGET_V1                            300
+#define DIFFICULTY_WINDOW_V2                            60
 #define DIFFICULTY_WINDOW                               720 // blocks
 #define DIFFICULTY_LAG                                  15  // !!!
 #define DIFFICULTY_CUT                                  60  // timestamps to cut after sorting
+#define DIFFICULTY_BLOCKS_COUNT_V2                      DIFFICULTY_WINDOW_V2
 #define DIFFICULTY_BLOCKS_COUNT                         DIFFICULTY_WINDOW + DIFFICULTY_LAG
-
 
 #define CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_SECONDS_V1   DIFFICULTY_TARGET_V1 * CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS
 #define CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_SECONDS_V2   DIFFICULTY_TARGET_V2 * CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS
