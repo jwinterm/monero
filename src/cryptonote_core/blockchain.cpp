@@ -733,7 +733,7 @@ difficulty_type Blockchain::get_difficulty_for_next_block()
 
   uint8_t version = get_current_hard_fork_version();
   size_t difficulty_blocks_count;
-  if (version == 1) {
+  if (version == 7) {
     difficulty_blocks_count = DIFFICULTY_BLOCKS_COUNT;
   } else {
     difficulty_blocks_count = DIFFICULTY_BLOCKS_COUNT_V2;
@@ -778,7 +778,7 @@ difficulty_type Blockchain::get_difficulty_for_next_block()
     m_difficulties = difficulties;
   }
   size_t target = DIFFICULTY_TARGET_V1;
-  if (version == 1) {
+  if (version == 7) {
     return next_difficulty(timestamps, difficulties, target);
   } else {
     return next_difficulty_v2(timestamps, difficulties, target, true);
@@ -932,7 +932,7 @@ difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std:
   std::vector<difficulty_type> cumulative_difficulties;
   uint8_t version = get_current_hard_fork_version();
   size_t difficulty_blocks_count;
-  if (version == 1) {
+  if (version == 7) {
     difficulty_blocks_count = DIFFICULTY_BLOCKS_COUNT;
   } else {
     difficulty_blocks_count = DIFFICULTY_BLOCKS_COUNT_V2;
@@ -992,7 +992,7 @@ difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std:
   size_t target = get_ideal_hard_fork_version(bei.height) < 2 ? DIFFICULTY_TARGET_V1 : DIFFICULTY_TARGET_V2;
 
   // calculate the difficulty target for the block and return it
-  if (version == 1) {
+  if (version == 7) {
     return next_difficulty(timestamps, cumulative_difficulties, target);
   } else {
     return next_difficulty_v2(timestamps, cumulative_difficulties, target, true);
