@@ -163,6 +163,7 @@ namespace cryptonote {
   }
 
   // Zawy's LWMA difficulty algorithm, based on Masari's implementation (https://github.com/zawy12/difficulty-algorithms/issues/3)
+  // removed + 1 and changed all 10s to 7 as recommended by Zawy
 
   difficulty_type next_difficulty_v2(std::vector<std::uint64_t> timestamps, std::vector<difficulty_type> cumulative_difficulties, size_t target_seconds, bool v2) {
 
@@ -196,15 +197,15 @@ namespace cryptonote {
         timespan = max_timestamp - previous_max;
         if (timespan == 0) {
           timespan = 1;
-        } else if (timespan > 10 * target_seconds) {
-          timespan = 10 * target_seconds;
+        } else if (timespan > 7 * target_seconds) {
+          timespan = 7 * target_seconds;
         }
 
         weighted_timespans += i * timespan;
         previous_max = max_timestamp;
       }
-      // adjust = 0.99 for N=60, leaving the + 1 for now as it's not affecting N
-      target = 99 * (((length + 1) / 2) * target_seconds) / 100;
+
+      target = 99 * ((length / 2) * target_seconds) / 100;
       } else {
       for (size_t i = 1; i < length; i++) {
         uint64_t timespan;
@@ -213,12 +214,12 @@ namespace cryptonote {
         } else {
           timespan = timestamps[i] - timestamps[i - 1];
         }
-        if (timespan > 10 * target_seconds) {
-          timespan = 10 * target_seconds;
+        if (timespan > 7 * target_seconds) {
+          timespan = 7 * target_seconds;
         }
         weighted_timespans += i * timespan;
       }
-      target = ((length + 1) / 2) * target_seconds;
+      target = (length / 2) * target_seconds;
       }
 
     uint64_t minimum_timespan = target_seconds * length / 2;
