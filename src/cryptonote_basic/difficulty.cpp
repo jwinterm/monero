@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <boost/math/special_functions/round.hpp>
 
 #include "common/int-util.h"
 #include "crypto/hash.h"
@@ -162,80 +163,61 @@ namespace cryptonote {
     return (low + time_span - 1) / time_span;
   }
 
-  // Zawy's LWMA difficulty algorithm, based on Masari's implementation (https://github.com/zawy12/difficulty-algorithms/issues/3)
-  // removed + 1 and changed all 10s to 7 as recommended by Zawy
+  difficulty_type next_difficulty_v2(std::vector<std::uint64_t> timestamps, std::vector<difficulty_type> cumulative_difficulties, size_t target_seconds) {
 
-  difficulty_type next_difficulty_v2(std::vector<std::uint64_t> timestamps, std::vector<difficulty_type> cumulative_difficulties, size_t target_seconds, bool v2) {
+    // LWMA difficulty algorithm
+    // Copyright (c) 2017-2018 Zawy
+    // Copyright (c) 2017-2018 Haven Protocol
+    // MIT license http://www.opensource.org/licenses/mit-license.php.
+    // This is an improved version of Tom Harding's (Deger8) "WT-144"
+    // Karbowanec, Masari, Bitcoin Gold, and Bitcoin Cash have contributed.
+    // See https://github.com/zawy12/difficulty-algorithms/issues/3 for other algos.
+    // Do not use "if solvetime < 0 then solvetime = 1" which allows a catastrophic exploit.
+    // T= target_solvetime;
+    // N=45, 55, 70, 90, 120 for T=600, 240, 120, 90, and 60
 
-    if (timestamps.size() > DIFFICULTY_BLOCKS_COUNT_V2)
-    {
-      timestamps.resize(DIFFICULTY_BLOCKS_COUNT_V2);
-      cumulative_difficulties.resize(DIFFICULTY_BLOCKS_COUNT_V2);
+    const int64_t T = static_cast<int64_t>(target_seconds);
+    size_t N = DIFFICULTY_WINDOW_V2;
+
+    if (timestamps.size() > N) {
+      timestamps.resize(N + 1);
+      cumulative_difficulties.resize(N + 1);
+    }
+    size_t n = timestamps.size();
+    assert(n == cumulative_difficulties.size());
+    assert(n <= DIFFICULTY_WINDOW_V2);
+    // If new coin, just "give away" first 5 blocks at low difficulty
+    if ( n < 6 ) { return  1; }
+    // If height "n" is from 6 to N, then reset N to n-1.
+    else if (n < N+1) { N=n-1; }
+
+    // To get an average solvetime to within +/- ~0.1%, use an adjustment factor.
+    // adjust=0.999 for 90 < N < 130
+    const double adjust = 0.998;
+    // The divisor k normalizes LWMA.
+    const double k = N * (N + 1) / 2;
+
+    double LWMA(0), sum_inverse_D(0), harmonic_mean_D(0), nextDifficulty(0);
+    int64_t solveTime(0);
+    uint64_t difficulty(0), next_difficulty(0);
+
+    // Loop through N most recent blocks.
+    for (size_t i = 1; i <= N; i++) {
+      solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<int64_t>(timestamps[i - 1]);
+      solveTime = std::min<int64_t>((T * 7), std::max<int64_t>(solveTime, (-7 * T)));
+      difficulty = cumulative_difficulties[i] - cumulative_difficulties[i - 1];
+      LWMA += solveTime * i / k;
+      sum_inverse_D += 1 / static_cast<double>(difficulty);
     }
 
-    size_t length = timestamps.size();
-    assert(length == cumulative_difficulties.size());
-    if (length <= 1) {
-      return 1;
-    }
+    // Keep LWMA sane in case something unforeseen occurs.
+    if (static_cast<int64_t>(boost::math::round(LWMA)) < T / 20)
+      LWMA = static_cast<double>(T / 20);
 
-    uint64_t weighted_timespans = 0;
-    uint64_t target;
+    harmonic_mean_D = N / sum_inverse_D * adjust;
+    nextDifficulty = harmonic_mean_D * T / LWMA;
+    next_difficulty = static_cast<uint64_t>(nextDifficulty);
 
-    if (v2 == true) {
-      uint64_t previous_max = timestamps[0];
-      for (size_t i = 1; i < length; i++) {
-        uint64_t timespan;
-        uint64_t max_timestamp;
-
-        if (timestamps[i] > previous_max) {
-          max_timestamp = timestamps[i];
-        } else {
-          max_timestamp = previous_max;
-        }
-
-        timespan = max_timestamp - previous_max;
-        if (timespan == 0) {
-          timespan = 1;
-        } else if (timespan > 7 * target_seconds) {
-          timespan = 7 * target_seconds;
-        }
-
-        weighted_timespans += i * timespan;
-        previous_max = max_timestamp;
-      }
-
-      target = 99 * ((length / 2) * target_seconds) / 100;
-      } else {
-      for (size_t i = 1; i < length; i++) {
-        uint64_t timespan;
-        if (timestamps[i - 1] >= timestamps[i]) {
-          timespan = 1;
-        } else {
-          timespan = timestamps[i] - timestamps[i - 1];
-        }
-        if (timespan > 7 * target_seconds) {
-          timespan = 7 * target_seconds;
-        }
-        weighted_timespans += i * timespan;
-      }
-      target = (length / 2) * target_seconds;
-      }
-
-    uint64_t minimum_timespan = target_seconds * length / 2;
-    if (weighted_timespans < minimum_timespan) {
-      weighted_timespans = minimum_timespan;
-    }
-
-    difficulty_type total_work = cumulative_difficulties.back() - cumulative_difficulties.front();
-    assert(total_work > 0);
-
-    uint64_t low, high;
-    mul(total_work, target, low, high);
-    if (high != 0) {
-      return 0;
-    }
-    return low / weighted_timespans;
+    return next_difficulty;
   }
-
 }
